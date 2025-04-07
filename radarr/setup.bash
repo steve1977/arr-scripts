@@ -91,7 +91,7 @@ curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/Pl
 echo "Done"
 
 echo "Download Extras script..."
-curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/Extras.bash -o /data/.extended/Extras.bash 
+curl https://raw.githubusercontent.com/steve1977/arr-scripts/main/radarr/Extras.bash -o /data/.extended/Extras.bash 
 echo "Done"
 
 echo "Download TdarrScan script..."
