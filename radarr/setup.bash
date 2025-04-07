@@ -86,6 +86,7 @@ if [ ! -f /config/extended/naming.json ]; then
 fi
 
 mkdir -p /config/extended
+mkdir -p /data/.extended
 echo "Download PlexNotify script..."
 curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/PlexNotify.bash -o /config/extended/PlexNotify.bash 
 echo "Done"
