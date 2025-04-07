@@ -58,11 +58,11 @@ curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/universal
 echo "Done"
 
 echo "Download AutoConfig service..."
-curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/AutoConfig.service -o /custom-services.d/AutoConfig
+curl https://raw.githubusercontent.com/steve1977/arr-scripts/main/radarr/AutoConfig.service -o /custom-services.d/AutoConfig
 echo "Done"
 
 echo "Download AutoExtras service..."
-curl https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/radarr/AutoExtras.service -o /custom-services.d/AutoExtras
+curl https://raw.githubusercontent.com/steve1977/arr-scripts/main/radarr/AutoExtras.service -o /custom-services.d/AutoExtras
 echo "Done"
 
 echo "Download InvalidMoviesAutoCleaner service..."
