@@ -1,5 +1,5 @@
 #!/bin/bash
-scriptVersion="2.0"
+scriptVersion="2.7.1"
 scriptName="Video"
 
 #### Import Settings
@@ -47,8 +47,22 @@ function Configuration {
 		log "Sickbeard MP4 Automator (SMA): DISABLED"
 	fi
 	
-	if [ -z "enableSmaTagging" ]; then
+	if [ -z "$enableSmaTagging" ]; then
 		enableSmaTagging=FALSE
+	fi
+
+	if [ -z "$requireSubs" ]; then
+	    log "Require Subtitles :: Disabled"
+		requireSubs=FALSE
+	else
+        log "Require Subtitles :: Enabled"
+	fi
+
+    if [ -z "$failVideosWithUnknownAudioTracks" ]; then
+	    log "Fail Videos with Unknown (language) Audio Tracks :: Disabled"
+		failVideosWithUnknownAudioTracks=FALSE
+	else
+        log "Fail Videos with Unknown (language) Audio Tracks :: Enabled"
 	fi
 }
 
@@ -65,11 +79,25 @@ VideoLanguageCheck () {
 		log "$count of $fileCount :: Processing $fileName"
 		videoData=$(ffprobe -v quiet -print_format json -show_streams "$file")
 		videoAudioTracksCount=$(echo "${videoData}" | jq -r ".streams[] | select(.codec_type==\"audio\") | .index" | wc -l)
+		videoUnknownAudioTracksNull=$(echo "${videoData}" | jq -r ".streams[] | select(.codec_type==\"audio\") | .tags.language")
+		videoUnknownAudioTracksCount=$(echo "${videoData}" | jq -r ".streams[] | select(.codec_type==\"audio\") | select(.tags.language==\"und\") | .index" | wc -l)
 		videoSubtitleTracksCount=$(echo "${videoData}" | jq -r ".streams[] | select(.codec_type==\"subtitle\") | .index" | wc -l)
 		log "$count of $fileCount :: $videoAudioTracksCount Audio Tracks Found!"
 		log "$count of $fileCount :: $videoSubtitleTracksCount Subtitle Tracks Found!"
 		videoAudioLanguages=$(echo "${videoData}" | jq -r ".streams[] | select(.codec_type==\"audio\") | .tags.language")
 		videoSubtitleLanguages=$(echo "${videoData}" | jq -r ".streams[] | select(.codec_type==\"subtitle\") | .tags.language")
+
+		if [ "$failVideosWithUnknownAudioTracks" == "true" ]; then
+		  if [ "$videoUnknownAudioTracksNull" == "null" ]; then
+		   	log "$count of $fileCount :: ERROR :: $videoAudioTracksCount Unknown (null) Audio Language Tracks found, failing download and performing cleanup"
+			rm "$file" && log "INFO: deleted: $fileName"
+   			return
+		  elif [ $videoUnknownAudioTracksCount -ne 0 ]; then
+            		log "$count of $fileCount :: ERROR :: $videoUnknownAudioTracksCount Unknown Audio Language Tracks found, failing download and performing cleanup"
+			rm "$file" && log "INFO: deleted: $fileName"
+   			return
+		  fi
+		fi
 
 		# Language Check
 		log "$count of $fileCount :: Checking for preferred languages \"$videoLanguages\""
@@ -89,6 +117,24 @@ VideoLanguageCheck () {
 				fi
 			fi
 		done
+        
+		if [ "$requireSubs" == "true" ]; then
+			if [ "${requireLanguageMatch}" = "true" ]; then
+			   if [ $videoSubtitleTracksLanguageCount -eq 0 ]; then
+					log "$count of $fileCount :: ERROR :: No subtitles found, requireSubs is enabled..."
+					rm "$file" && log "INFO: deleted: $fileName"
+			   elif [ $videoSubtitleTracksCount -ne $videoSubtitleTracksLanguageCount ]; then
+			      if [ "$smaProcessComplete" == "false" ]; then
+					return
+			      fi
+			      log "$count of $fileCount :: ERROR :: Expected Subtitle count ($videoSubtitleTracksLanguageCount), $videoSubtitleTracksCount subtitles found..."
+			      rm "$file" && log "INFO: deleted: $fileName"
+			   fi
+			elif [ $videoSubtitleTracksCount -eq 0 ]; then
+			  log "$count of $fileCount :: ERROR :: No subtitles found, requireSubs is enabled..."
+			  rm "$file" && log "INFO: deleted: $fileName"
+			fi 
+		fi
 
 		if [ "$preferredLanguage" == "false" ]; then
 			if [ ${enableSma} = true ]; then
@@ -101,6 +147,7 @@ VideoLanguageCheck () {
 				log "$count of $fileCount :: ERROR :: Disable "
 				rm "$file" && log "INFO: deleted: $fileName"
 			fi
+
 		fi
 
 		
@@ -133,19 +180,22 @@ DeleteLocalArtwork () {
 }
 
 ArrWaitForTaskCompletion () {
+  log "$count of $fileCount :: STATUS :: Checking ARR App Status"
   alerted=no
   until false
   do
-    log "$count of $fileCount :: STATUS :: Checking ARR App Status"
     taskCount=$(curl -s "$arrUrl/api/v3/command?apikey=${arrApiKey}" | jq -r '.[] | select(.status=="started") | .name' | wc -l)
 	arrDownloadTaskCount=$(curl -s "$arrUrl/api/v3/command?apikey=${arrApiKey}" | jq -r '.[] | select(.status=="started") | .name' | grep "ProcessMonitoredDownloads" | wc -l)
 	if [ "$taskCount" -ge "3" ] || [ "$arrDownloadTaskCount" -ge "1" ]; then
 	  if [ "$alerted" == "no" ]; then
 		alerted=yes
 		log "$count of $fileCount :: STATUS :: ARR APP BUSY :: Pausing/waiting for all active Arr app tasks to end..."
+	  else
+	    log "$count of $fileCount :: STATUS :: ARR APP BUSY :: Waiting..."
 	  fi
 	  sleep 2
 	else
+	  log "$count of $fileCount :: STATUS :: Done"
 	  break
 	fi
   done
@@ -175,29 +225,49 @@ VideoSmaProcess (){
 					log "$count of $fileCount :: Refreshing Radarr app Queue"
      					refreshQueue=$(curl -s "$arrUrl/api/v3/command" -X POST -H 'Content-Type: application/json' -H "X-Api-Key: $arrApiKey" --data-raw '{"name":"RefreshMonitoredDownloads"}')
 					ArrWaitForTaskCompletion
-					arrItemId=$(curl -s "$arrUrl/api/v3/queue?page=1&pageSize=50&sortDirection=ascending&sortKey=timeleft&includeUnknownMovieItems=true&apikey=$arrApiKey" | jq -r --arg id "$downloadId" '.records[] | select(.downloadId==$id) | .movieId')
+					arrItemId=$(curl -s "$arrUrl/api/v3/queue?page=1&pageSize=200&sortDirection=ascending&sortKey=timeleft&includeUnknownMovieItems=false&apikey=$arrApiKey" | jq -r --arg id "$downloadId" '.records[] | select(.downloadId==$id) | .movieId')
 					arrItemData=$(curl -s "$arrUrl/api/v3/movie/$arrItemId?apikey=$arrApiKey")
 					onlineSourceId="$(echo "$arrItemData" | jq -r ".tmdbId")"
-					log "$count of $fileCount :: Radarr Movie ID = $arrItemId"
-					log "$count of $fileCount :: TMDB ID = $onlineSourceId"
-					onlineData="-tmdb $onlineSourceId"
+					if [ -z "$onlineSourceId" ]; then
+					  log "$count of $fileCount :: Could not get Movie data from Radarr, skip tagging..."
+					  tagging="-nt"
+			  		  onlineData=""
+					else
+					  log "$count of $fileCount :: Radarr Movie ID = $arrItemId"
+					  log "$count of $fileCount :: TMDB ID = $onlineSourceId"
+					  onlineData="-tmdb $onlineSourceId"
+					fi
 				fi
 				if echo $category | grep sonarr | read; then
 					log "$count of $fileCount :: Refreshing Sonarr app Queue"
 					refreshQueue=$(curl -s "$arrUrl/api/v3/command" -X POST -H 'Content-Type: application/json' -H "X-Api-Key: $arrApiKey" --data-raw '{"name":"RefreshMonitoredDownloads"}')
 					ArrWaitForTaskCompletion
-					arrQueueItemData=$(curl -s "$arrUrl/api/v3/queue?page=1&pageSize=50&sortDirection=ascending&sortKey=timeleft&includeUnknownSeriesItems=true&apikey=$arrApiKey" | jq -r --arg id "$downloadId" '.records[] | select(.downloadId==$id)')
+					arrQueueItemData=$(curl -s "$arrUrl/api/v3/queue?page=1&pageSize=200&sortDirection=ascending&sortKey=timeleft&includeUnknownSeriesItems=false&apikey=$arrApiKey" | jq -r --arg id "$downloadId" '.records[] | select(.downloadId==$id)')
 					arrSeriesId="$(echo $arrQueueItemData | jq -r .seriesId)"
+					arrSeriesCount=$(echo "$arrSeriesId" | wc -l)
 					arrEpisodeId="$(echo $arrQueueItemData | jq -r .episodeId)"
-					arrSeriesData=$(curl -s "$arrUrl/api/v3/series/$arrSeriesId?apikey=$arrApiKey")
-					arrEpisodeData=$(curl -s "$arrUrl/api/v3/episode/$arrEpisodeId?apikey=$arrApiKey")
-					onlineSourceId="$(echo "$arrSeriesData" | jq -r ".tvdbId")"
-					seasonNumber="$(echo "$arrEpisodeData" | jq -r ".seasonNumber")"
-					episodeNumber="$(echo "$arrEpisodeData" | jq -r ".episodeNumber")"
-					log "$count of $fileCount :: Sonarr Show ID = $arrSeriesId"
-					log "$count of $fileCount :: TVDB ID = $onlineSourceId"
-					onlineSource="-tvdb"
-					onlineData="-tvdb $onlineSourceId -s $seasonNumber -e $episodeNumber"
+					arrEpisodeCount=$(echo "$arrEpisodeId" | wc -l)
+					if [ -z "$arrSeriesId" ]; then
+					  log "$count of $fileCount :: Could not get Series/Episode data from Sonarr, skip tagging..."
+					  tagging="-nt"
+					  onlineSourceId=""
+			  		  onlineData=""
+					elif [ $arrEpisodeCount -ge 2 ]; then
+					   log "$count of $fileCount :: Multi episode detected, skip tagging..."
+					   tagging="-nt"
+					   onlineSourceId=""
+			  		   onlineData=""
+					else
+						arrSeriesData=$(curl -s "$arrUrl/api/v3/series/$arrSeriesId?apikey=$arrApiKey")
+						arrEpisodeData=$(curl -s "$arrUrl/api/v3/episode/$arrEpisodeId?apikey=$arrApiKey")
+						onlineSourceId="$(echo "$arrSeriesData" | jq -r ".tvdbId")"
+						seasonNumber="$(echo "$arrEpisodeData" | jq -r ".seasonNumber")"
+						episodeNumber="$(echo "$arrEpisodeData" | jq -r ".episodeNumber")"
+						log "$count of $fileCount :: Sonarr Show ID = $arrSeriesId"
+						log "$count of $fileCount :: TVDB ID = $onlineSourceId"
+						onlineSource="-tvdb"
+						onlineData="-tvdb $onlineSourceId -s $seasonNumber -e $episodeNumber"
+					fi
 				fi
 			else
 			  onlineSourceId=""
