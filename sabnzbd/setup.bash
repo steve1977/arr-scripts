@@ -1,5 +1,5 @@
 #!/usr/bin/with-contenv bash
-scriptVersion="3.0"
+scriptVersion="3.2"
 
 if [ -f /config/setup_version.txt ]; then
   source /config/setup_version.txt
@@ -23,18 +23,11 @@ InstallRequirements () {
 		git \
 		ffmpeg
 	apk add mp3val --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
-	echo "*** install beets ***"
-	apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community beets
 	echo "************ install python packages ************"
-	pip install --upgrade --no-cache-dir --break-system-packages -U \
-		m4b-merge \
-		pyacoustid \
-		requests \
-		pylast \
-		mutagen \
-        r128gain \
+	pip install --no-cache-dir --break-system-packages -U \
+	    beets[acousticbrainz,badfiles,fetchart,lyrics,lastgenre,embyupdate,chroma,plexupdate,audible,copyartifacts,edit,fromfilename,scrub,embedart] \
 		beets-audible \
-  		beets-copyartifacts3
+		beets-copyartifacts3
   echo "Done"
   if [ -d /config/scripts/sma ]; then
     rm -rf /config/scripts/sma
