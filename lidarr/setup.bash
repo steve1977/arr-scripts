@@ -52,8 +52,7 @@ uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   pylast \
   mutagen \
   r128gain \
-  git+https://github.com/devicelocksmith/Tidal-Media-Downloader.git \
-  # tidal-dl \
+  tidal-dl \
   deemix \
   langdetect \
   apprise  && \
