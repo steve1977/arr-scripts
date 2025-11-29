@@ -1,11 +1,11 @@
 #!/bin/bash
-scriptVersion="2.2"
+scriptVersion="2.5"
 scriptName="Processor"
 dockerPath="/config/logs"
 
 ##### VIDEO SCRIPT
-videoLanguages="eng" # Default: eng :: Set to required language (this is a "," separated list of ISO 639-2 language codes)
-defaultLanguage="English" # To use this porperly set the "default-language" Audio/Subtitle setting to the ISO 639-2 language code in the sma_defaultlang.ini file. The Language/word must match the exact spelling in the associated Arr App (ie: English = eng)
+videoLanguages="eng" # Default: eng :: Set to required language (ISO 639-2 language codes)
+defaultLanguage="English" # The Language/word must match the exact spelling in the associated Arr App (ie: English = eng)
 requireLanguageMatch="true" # true = enabled, disables/enables checking video audio/subtitle language based on videoLanguages setting
 failVideosWithUnknownAudioTracks="true" # true = enabled, causes script to error out/fail download because unknown audio language tracks were found
 requireSubs="true" # true = enabled, subtitles must be included or the download will be marked as failed
@@ -255,6 +255,68 @@ arrLanguage () {
     arrItemLang="zh,$videoLanguages"
   elif [ "$arrItemLanguage" == "Telugu" ]; then
     arrItemLang="te,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Turkish" ]; then
+    arrItemLang="tr,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Arabic" ]; then
+    arrItemLang="ar,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Bengali" ]; then
+    arrItemLang="bn,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Catalan" ]; then
+    arrItemLang="ca,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Croatian" ]; then
+    arrItemLang="hr,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Czech" ]; then
+    arrItemLang="cs,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Danish" ]; then
+    arrItemLang="da,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Dutch" ]; then
+    arrItemLang="nl,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Hindi" ]; then
+    arrItemLang="hi,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Hungarian" ]; then
+    arrItemLang="hu,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Icelandic" ]; then
+    arrItemLang="is,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Indonesian" ]; then
+    arrItemLang="id,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Italian" ]; then
+    arrItemLang="it,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Kannada" ]; then
+    arrItemLang="kn,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Korean" ]; then
+    arrItemLang="ko,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Latvian" ]; then
+    arrItemLang="lv,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Malayalam" ]; then
+    arrItemLang="ml,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Marathi" ]; then
+    arrItemLang="mr,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Norwegian" ]; then
+    arrItemLang="no,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Persian" ]; then
+    arrItemLang="fa,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Polish" ]; then
+    arrItemLang="pl,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Portuguese" ]; then
+    arrItemLang="pt,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Romanian" ]; then
+    arrItemLang="ro,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Russian" ]; then
+    arrItemLang="ru,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Serbian" ]; then
+    arrItemLang="sr,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Slovenian" ]; then
+    arrItemLang="sl,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Tagalog" ]; then
+    arrItemLang="tl,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Tamil" ]; then
+    arrItemLang="ta,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Thai" ]; then
+    arrItemLang="th,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Ukrainian" ]; then
+    arrItemLang="uk,$videoLanguages"
+  elif [ "$arrItemLanguage" == "Vietnamese" ]; then
+    arrItemLang="vi,$videoLanguages"
   else
     log "ERROR :: Unconfigured Language ($arrItemLanguage), using default ($videoLanguages)"
     arrItemLang="$videoLanguages"
@@ -269,7 +331,6 @@ Cleaner () {
 }
 
 ArrDownloadInfo () {
-    defaultLanguageMatch="false"
     log "Step - Getting Arr Download Information"
     if echo "$filePath" | grep "sonarr" | read; then
         arrUrl="$sonarrUrl" # Set category in SABnzbd to: sonarr
@@ -292,7 +353,7 @@ ArrDownloadInfo () {
             log "TVDB ID = $onlineSourceId"
             arrLanguage
             if [ "$arrItemLanguage" = "$defaultLanguage" ]; then
-              log "Preferred Default Language Match!"
+              log "Default Language Match!"
               audioLang="$videoLanguages"
             else
               audioLang="$arrItemLang"
@@ -323,7 +384,7 @@ ArrDownloadInfo () {
             onlineData="-tmdb $onlineSourceId"
             arrLanguage
             if [ "$arrItemLanguage" = "$defaultLanguage" ]; then
-              log "Preferred Default Language Match!"
+              log "Default Language Match!"
               audioLang="$videoLanguages"
             else
               audioLang="$arrItemLang"
@@ -337,6 +398,7 @@ MAIN () {
   logfileSetup
   filePath="$1"
   downloadId="$SAB_NZO_ID"
+  skipRemux="false"
   log "Script: $scriptName :: Script Version :: $scriptVersion"
   installDependencies
   # log "$filePath :: $downloadId :: Processing"
@@ -346,8 +408,7 @@ MAIN () {
       if [ -f "/config/scripts/skip" ]; then
         log "Skip file found"
         skipRemux="true"
-      else
-        skipRemux="false"
+        rm "/config/scripts/skip"
       fi
       if find "$filePath" -type f -regex ".*/.*\.\(m4v\|wmv\|mp4\|avi\)" | read; then
         log "Non MKV files found, forcing remux"
@@ -359,9 +420,6 @@ MAIN () {
         VideoFileCheck
       else
         log "Files do not need remuxing, no further processing necessary..."
-      fi
-      if [ -f "/config/scripts/skip" ]; then
-        rm "/config/scripts/skip"
       fi
       Cleaner
   fi
