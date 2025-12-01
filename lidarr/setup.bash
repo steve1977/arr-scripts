@@ -42,7 +42,7 @@ git clone https://github.com/devicelocksmith/Tidal-Media-Downloader /tmp/tidal-d
 uv pip install --system --upgrade --no-cache-dir --break-system-packages /tmp/tidal-dl/TIDALDL-PY
 echo "*** install python-tidal ***"
 git clone https://github.com/EbbLabs/python-tidal /tmp/python-tidal
-uv pip install --system --upgrade --no-cache-dir --break-system-packages /tmp/python-tidal/tidalapi
+uv pip install --system --upgrade --no-cache-dir --break-system-packages /tmp/python-tidal/
 echo "*** install python packages ***" && \
 uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   jellyfish \
