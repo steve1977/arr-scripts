@@ -1,5 +1,5 @@
 #!/bin/bash
-scriptVersion="4.2"
+scriptVersion="4.6"
 scriptName="Processor"
 dockerPath="/config/logs"
 
@@ -61,7 +61,7 @@ VideoFileCheck () {
     log "Video Files Found, continuing..."
 		sleep 0.1
 	else
-		log "ERROR: No video files found for processing"
+		echo "SCRIPT ERROR :: No video files found for processing"
 		exit 1
 	fi
 }
@@ -470,7 +470,12 @@ MAIN () {
   fi
 
   duration=$SECONDS
-  log "Post Processing Completed in $(($duration / 60 )) minutes and $(($duration % 60 )) seconds!"
+  if [ $duration -ge 60 ]; then
+    echo "Completed in $(($duration / 60 )) minutes and $(($duration % 60 )) seconds!"
+  else
+    echo "Completed in $duration seconds!"
+  fi
+  
 }
 
 MAIN "$1"
