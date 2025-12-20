@@ -37,12 +37,6 @@ apk add -U --upgrade --no-cache \
 echo "*** install freyr client ***" && \
 apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley && \
 npm install -g miraclx/freyr-js &&\
-echo "*** install tidal-dl ***"
-git clone https://github.com/devicelocksmith/Tidal-Media-Downloader /tmp/tidal-dl
-uv pip install --system --upgrade --no-cache-dir --break-system-packages /tmp/tidal-dl/TIDALDL-PY
-echo "*** install python-tidal ***"
-git clone https://github.com/EbbLabs/python-tidal /tmp/python-tidal
-uv pip install --system --upgrade --no-cache-dir --break-system-packages /tmp/python-tidal/
 echo "*** install python packages ***" && \
 uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   jellyfish \
@@ -58,6 +52,7 @@ uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   pylast \
   mutagen \
   r128gain \
+  tidal-dl \
   deemix \
   langdetect \
   apprise  && \
